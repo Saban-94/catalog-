@@ -1,0 +1,47 @@
+{
+  "entities": {
+    "Product": {
+      "title": "Product",
+      "description": "Inventory products in the catalog",
+      "type": "object",
+      "properties": {
+        "sku": { "type": "string" },
+        "productName": { "type": "string" },
+        "category": { "type": "string" },
+        "price": { "type": "number" },
+        "stock": { "type": "number" },
+        "unit": { "type": "string" },
+        "specsJson": { "type": "string" },
+        "driveAssets": { "type": "string" },
+        "tutorialLink": { "type": "string" },
+        "relatedItems": { "type": "array" },
+        "upsellSkus": { "type": "array" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["sku", "productName", "price", "stock"]
+    },
+    "AiLog": {
+      "title": "AI Log",
+      "description": "Log of AI interactions",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "userQuery": { "type": "string" },
+        "aiResponse": { "type": "string" },
+        "sku": { "type": "string" },
+        "timestamp": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userQuery", "aiResponse", "timestamp"]
+    }
+  },
+  "firestore": {
+    "inventory/{productId}": {
+      "schema": "Product",
+      "description": "Main product inventory collection"
+    },
+    "ai_logs/{logId}": {
+      "schema": "AiLog",
+      "description": "Activity logs for AI queries"
+    }
+  }
+}

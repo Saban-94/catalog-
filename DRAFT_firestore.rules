@@ -1,0 +1,69 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Default Deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // --- Helpers ---
+    function isSignedIn() { return request.auth != null; }
+    function isEmailVerified() { return isSignedIn() && request.auth.token.email_verified == true; }
+    function isAdmin() { 
+      return isEmailVerified() && request.auth.token.email == "hsaban2025@gmail.com"; 
+    }
+    
+    function incoming() { return request.resource.data; }
+    function existing() { return resource.data; }
+    
+    function isValidId(id) { 
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$'); 
+    }
+
+    // --- Entity Validations ---
+    function isValidProduct(data) {
+      return data.keys().hasAll(['sku', 'productName', 'price', 'stock']) &&
+             data.sku is string && data.sku.size() <= 64 &&
+             data.productName is string && data.productName.size() <= 200 &&
+             data.price is number && data.price >= 0 &&
+             data.stock is number &&
+             (!('category' in data) || (data.category is string && data.category.size() <= 100)) &&
+             (!('updatedAt' in data) || (data.updatedAt == request.time));
+    }
+
+    function isValidLog(data) {
+      return data.keys().hasAll(['userQuery', 'aiResponse', 'timestamp']) &&
+             data.userQuery is string && data.userQuery.size() <= 2000 &&
+             data.aiResponse is string && data.aiResponse.size() <= 5000 &&
+             data.timestamp == request.time &&
+             (!('userId' in data) || (data.userId == request.auth.uid)) &&
+             (!('sku' in data) || (data.sku is string && data.sku.size() <= 64));
+    }
+
+    // --- Collections ---
+
+    // Inventory
+    match /inventory/{productId} {
+      allow read: if isSignedIn();
+      allow create: if isAdmin() && isValidId(productId) && isValidProduct(incoming());
+      allow update: if isAdmin() && isValidProduct(incoming()) && (
+        incoming().sku == existing().sku // Immutable SKU
+      );
+      allow delete: if isAdmin();
+    }
+
+    // AI Logs
+    match /ai_logs/{logId} {
+      allow list: if isAdmin(); // Only admins can list all logs
+      allow get: if isSignedIn() && (isAdmin() || existing().userId == request.auth.uid);
+      allow create: if isSignedIn() && isValidId(logId) && isValidLog(incoming());
+      allow update, delete: if false; // Logs are immutable
+    }
+
+    // Meta/Config (e.g. for bootstrapping admins)
+    match /admins/{userId} {
+      allow read: if isSignedIn();
+      allow write: if false; // Managed via console
+    }
+  }
+}
