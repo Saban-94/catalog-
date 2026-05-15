@@ -50,23 +50,34 @@ export default function NoaSidebar({ products }: NoaSidebarProps) {
     ).join("\n");
 
     try {
-      const response = await ai.models.generateContent({
-        model: "gemini-3-flash-preview",
-        contents: currentInput,
-        config: {
-          systemInstruction: `You are Noa, a professional female AI assistant for "H. Saban Construction Materials 1994 Ltd". 
+      const history = messages.slice(-5).map(m => ({
+        role: m.role === "user" ? "user" : "model",
+        parts: [{ text: m.content }]
+      }));
+
+      const model = ai.getGenerativeModel({
+        model: "gemini-1.5-flash",
+        systemInstruction: `You are Noa, a professional female AI assistant for "H. Saban Construction Materials 1994 Ltd". 
           Your tone is professional, helpful, and expert. You speak ONLY Hebrew.
           
-          Here is the current LIVE inventory context:
+          CONTEXTUAL RECOMMENDATIONS:
+          - If a user mentions a specific project (e.g., painting, flooring, sealing), proactively recommend the 2nd and 3rd best complementary items from the inventory list.
+          - For example: If they ask about "Tile Glue", suggest "Spacers" or "Grout". If they ask about "White Paint", suggest "Rollers" or "Masking Tape".
+          - Always mention the SKU of the products you recommend.
+          - If a product is out of stock (Stock: 0), still mention it but note it requires a special order.
+
+          LIVE INVENTORY:
           ${inventoryContext}
 
-          Your goal is to assist with technical specs (drying time, coverage, application), inventory availability, and product recommendations based on the provided list.
-          If a product has 0 stock, let the user know it is currently out of stock but can be ordered.
-          Always maintain the professional Saban brand personality.`
-        }
+          Always maintain the professional Saban brand personality. Keep responses concise but information-rich.`
       });
 
-      const aiText = response.text || "סליחה, נתקלתי בקושי קטן. אשמח שתנסה שוב.";
+      const chat = model.startChat({
+        history: history as any,
+      });
+
+      const result = await chat.sendMessage(currentInput);
+      const aiText = result.response.text();
       const noaMessage: Message = { role: "noa", content: aiText };
       setMessages(prev => [...prev, noaMessage]);
 
