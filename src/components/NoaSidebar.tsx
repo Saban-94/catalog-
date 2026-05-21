@@ -6,7 +6,8 @@ import { cn } from "@/src/lib/utils";
 import { db, auth } from "@/src/lib/firebase";
 import { collection, addDoc, serverTimestamp } from "firebase/firestore";
 
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+// התיקון כאן: שימוש ב-import.meta.env ובקידומת VITE_
+const ai = new GoogleGenAI({ apiKey: import.meta.env.VITE_GEMINI_API_KEY });
 
 interface Message {
   role: "user" | "noa";
@@ -54,7 +55,7 @@ export default function NoaSidebar() {
       const noaMessage: Message = { role: "noa", content: aiText };
       setMessages(prev => [...prev, noaMessage]);
 
-      // 1. Log to Firestore (Pillar 8/10 compliant)
+      // 1. Log to Firestore
       if (auth.currentUser) {
         await addDoc(collection(db, "ai_logs"), {
           userId: auth.currentUser.uid,
@@ -65,7 +66,7 @@ export default function NoaSidebar() {
         });
       }
 
-      // 2. Log to Sheets (Proxy via server)
+      // 2. Log to Sheets
       fetch("/api/log-qa", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
