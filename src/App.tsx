@@ -2,6 +2,8 @@
  * @license
  * SPDX-License-Identifier: Apache-2.0
  */
+import { seedInventoryToFirestore } from "@/src/lib/seedDatabase";
+
 
 import { useState, useEffect } from "react";
 import { onAuthStateChanged, User } from "firebase/auth";
@@ -87,7 +89,13 @@ export default function App() {
         <div className="absolute top-[10%] -right-20 w-[600px] h-[600px] bg-gray-50 rounded-full blur-[120px] opacity-60"></div>
         <div className="absolute bottom-0 -left-20 w-[400px] h-[400px] bg-red-50/20 rounded-full blur-[100px]"></div>
       </div>
-
+// הוסף את הכפתור הזה איפשהו בממשק, לחץ עליו פעם אחת, ואז תוכל למחוק אותו
+<button 
+  onClick={seedInventoryToFirestore}
+  className="bg-red-500 text-white px-4 py-2 rounded-lg text-xs font-bold"
+>
+  הזרק נתוני דמו למלאי
+</button>
       <Header />
       
       <div className="flex">
