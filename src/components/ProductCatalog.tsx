@@ -1,16 +1,33 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { collection, onSnapshot, query, orderBy } from "firebase/firestore";
+import { db, auth } from "@/src/lib/firebase";
 import { Product } from "@/src/data/mockProducts";
 import ProductCard from "./ProductCard";
 import { motion, AnimatePresence } from "motion/react";
 import { Loader2, PackageSearch } from "lucide-react";
 
-interface ProductCatalogProps {
-  products: Product[];
-  loading: boolean;
-}
-
-export default function ProductCatalog({ products, loading }: ProductCatalogProps) {
+export default function ProductCatalog() {
+  const [products, setProducts] = useState<Product[]>([]);
+  const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState("הכל");
+
+  useEffect(() => {
+    const q = query(collection(db, "inventory"), orderBy("productName", "asc"));
+    
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const prods = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      })) as Product[];
+      setProducts(prods);
+      setLoading(false);
+    }, (error) => {
+      console.error("Firestore Error:", error);
+      setLoading(false);
+    });
+
+    return () => unsubscribe();
+  }, []);
 
   const filteredProducts = products.filter(p => 
     filter === "הכל" || p.category === filter
@@ -31,15 +48,15 @@ export default function ProductCatalog({ products, loading }: ProductCatalogProp
       
       <div className="flex flex-col md:flex-row md:items-end justify-between mb-16 gap-4">
         <div className="relative">
-          <div className="absolute -top-6 right-0 text-[10px] text-brand-accent font-black uppercase tracking-[0.4em] opacity-80">Collection 2024 / Artistic</div>
+          <div className="absolute -top-6 right-0 text-[10px] text-brand-accent font-black uppercase tracking-[0.4em] opacity-50">Collection 2024 / Artistic</div>
           <motion.h2 
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
-            className="text-6xl font-serif italic text-white mb-2"
+            className="text-6xl font-serif italic text-brand-primary mb-2"
           >
-            קטלוג מוצרים <span className="font-sans not-italic font-black text-2xl ml-2 opacity-20 text-brand-accent">/01</span>
+            קטלוג מוצרים <span className="font-sans not-italic font-black text-2xl ml-2 opacity-20">/01</span>
           </motion.h2>
-          <p className="text-brand-secondary max-w-sm text-sm leading-relaxed">
+          <p className="text-gray-500 max-w-sm text-sm leading-relaxed">
             אוצרות מובחרת של פתרונות בנייה ועיצוב. כל מוצר נבחר בקפידה עבור פרויקטים הדורשים שלמות אמנותית ועמידות מקסימלית.
           </p>
         </div>
@@ -51,8 +68,8 @@ export default function ProductCatalog({ products, loading }: ProductCatalogProp
               onClick={() => setFilter(cat)}
               className={`px-8 py-3 text-[11px] font-black uppercase tracking-widest transition-all rounded-none ${
                 filter === cat 
-                ? "bg-brand-accent text-black shadow-[0_0_20px_rgba(197,160,89,0.3)]" 
-                : "bg-white/5 text-brand-secondary border border-white/5 hover:text-white hover:bg-white/10"
+                ? "bg-brand-primary text-white shadow-lg" 
+                : "bg-white text-gray-400 hover:text-black border border-transparent hover:border-black/5"
               }`}
             >
               {cat}
