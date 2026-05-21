@@ -2,7 +2,7 @@
 import { Product } from '../data/mockProducts';
 
 // הכנס כאן את ה-URL שקיבלת אחרי ה-Deploy ב-Apps Script
-const GAS_WEB_APP_URL = "https://script.google.com/macros/s/YOUR_SCRIPT_ID/exec";
+const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzKGIU-gJNOP78NlCnI42pVotwbHthDIdWpY7jUqqGYlZPPdGHUtoGWawYWgkQjATYw/exec";
 
 export async function fetchInventory(): Promise<Product[]> {
   try {
