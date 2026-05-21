@@ -4,10 +4,10 @@ import { motion, AnimatePresence } from "motion/react";
 import { GoogleGenAI } from "@google/genai";
 import { cn } from "@/src/lib/utils";
 import { db, auth } from "@/src/lib/firebase";
-import { collection, addDoc, serverTimestamp } from "firebase/firestore";
+import { collection, addDoc, serverTimestamp, query, orderBy, onSnapshot } from "firebase/firestore";
+import { Product, MOCK_PRODUCTS } from "@/src/data/mockProducts";
 
-// התיקון כאן: שימוש ב-import.meta.env ובקידומת VITE_
-const ai = new GoogleGenAI({ apiKey: import.meta.env.VITE_GEMINI_API_KEY });
+const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
 interface Message {
   role: "user" | "noa";
@@ -18,11 +18,26 @@ interface Message {
 export default function NoaSidebar() {
   const [isOpen, setIsOpen] = useState(true);
   const [messages, setMessages] = useState<Message[]>([
-    { role: "noa", content: "שלום! אני נועה, המלווה הדיגיטלית של ח.סבן. איך אוכל לעזור לך עם מוצרי הבנייה שלנו היום?" }
+    { role: "noa", content: "שלום! אני נועה, מומחית ה-AI והמלווה הדיגיטלית של ח.סבן חומרי בניין. איך אוכל לעזור לך לייעוץ טכני או לניהול הזמנות היום?" }
   ]);
   const [input, setInput] = useState("");
   const [isTyping, setIsTyping] = useState(false);
+  const [products, setProducts] = useState<Product[]>([]);
   const scrollRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const q = query(collection(db, "inventory"), orderBy("productName", "asc"));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const prods = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      })) as Product[];
+      setProducts(prods);
+    }, (error) => {
+      console.error("Firestore Error in NoaSidebar subscription:", error);
+    });
+    return () => unsubscribe();
+  }, []);
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -40,14 +55,43 @@ export default function NoaSidebar() {
     setIsTyping(true);
 
     try {
+      // גיוס המלאי המעודכן ביותר:
+      const activeProducts = products.length > 0 ? products : MOCK_PRODUCTS;
+      const normalizedProducts = activeProducts.map(p => {
+        const name = p.name || (p as any).productName || "מוצר ללא שם";
+        const stockValue = p.stock !== undefined ? p.stock : ((p as any).currentStock !== undefined ? (p as any).currentStock : 0);
+        return {
+          sku: p.sku || "SBN-UNKNOWN",
+          name: name,
+          productName: name,
+          category: p.category || "כללי",
+          price: p.price || 0,
+          stock: stockValue,
+          unit: p.unit || "יחידה",
+          specs: p.specs || {},
+          relatedSkus: p.relatedSkus || [],
+          upsellSkus: p.upsellSkus || []
+        };
+      });
+
       const response = await ai.models.generateContent({
-        model: "gemini-3-flash-preview",
+        model: "gemini-3.5-flash",
         contents: currentInput,
         config: {
-          systemInstruction: `You are Noa, a professional female AI assistant for "H. Saban Construction Materials 1994 Ltd". 
-          Your tone is professional, helpful, and expert. You speak only Hebrew.
-          You assist with technical specs (drying time, coverage, application), inventory, and tutorials.
-          Always maintain the professional Saban brand personality.`
+          systemInstruction: `את "נועה", מומחית AI ומלווה דיגיטלית מקצועית של "ח.סבן חומרי בניין 1994 בע"מ".
+תפקידך לייעץ טכנית על מוצרים (זמני ייבוש, כיסוי, יישום), להמליץ על מק"טים משלימים ולנהל את ההזמנות מול הלקוח.
+
+הנחיית מלאי קריטית: לעולם אל תסרבי לקבל הזמנה על פריט שחסר במלאי. אם מוצר אזל (כאשר המלאי/stock הוא 0 או פחות), עליך להציע אותו כ"הזמנה מיוחדת", לתייג אותו מיד כ"הזמנה מיוחדת" ולהמשיך בתהליך רגיל לקבלת ההזמנה של הלקוח ללא כל סירוב או עיכוב זמני.
+
+את מקבלת בכל פנייה את נתוני המלאי העדכניים בפורמט JSON הבא. התבססי אך ורק עליהם כדי לתת תשובות מדויקות על נתוני המוצרים והזמינות שלהם:
+[LIVE INVENTORY DATA JSON]:
+${JSON.stringify(normalizedProducts, null, 2)}
+
+שימי לב להנחיות הבאות:
+1. שמרי תמיד על טון מקצועי, חד, אדיב וענייני.
+2. דברי אך ורק בעברית קולחת, מקצועית ואדיבה.
+3. דייקי בפרטים טכניים (זמני ייבוש, כושר כיסוי, דרכי יישום וכו') על פי הנתונים ב-JSON.
+4. הציעי תמיד מק"טים משלימים נכונים (מתוך relatedSkus או upsellSkus) כדי לסייע ללקוח להשלים את רכישתו בצורה הטובה ביותר.`
         }
       });
 
@@ -55,7 +99,7 @@ export default function NoaSidebar() {
       const noaMessage: Message = { role: "noa", content: aiText };
       setMessages(prev => [...prev, noaMessage]);
 
-      // 1. Log to Firestore
+      // 1. Log to Firestore (Pillar 8/10 compliant)
       if (auth.currentUser) {
         await addDoc(collection(db, "ai_logs"), {
           userId: auth.currentUser.uid,
@@ -66,7 +110,7 @@ export default function NoaSidebar() {
         });
       }
 
-      // 2. Log to Sheets
+      // 2. Log to Sheets (Proxy via server)
       fetch("/api/log-qa", {
         method: "POST",
         headers: { "Content-Type": "application/json" },

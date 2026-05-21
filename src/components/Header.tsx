@@ -1,7 +1,13 @@
-import { Menu, Search, ShoppingBag, LogOut } from "lucide-react";
+import { Menu, Search, ShoppingBag, LogOut, ShieldAlert } from "lucide-react";
 import { auth, logout } from "@/src/lib/firebase";
+import { cn } from "@/src/lib/utils";
 
-export default function Header() {
+interface HeaderProps {
+  isAdminView?: boolean;
+  setIsAdminView?: (value: boolean) => void;
+}
+
+export default function Header({ isAdminView = false, setIsAdminView }: HeaderProps) {
   const user = auth.currentUser;
 
   return (
@@ -36,6 +42,21 @@ export default function Header() {
       </div>
 
       <div className="flex items-center gap-3">
+        {user && setIsAdminView && (
+          <button 
+            onClick={() => setIsAdminView(!isAdminView)}
+            className={cn(
+              "px-4 py-2 text-[10px] font-black uppercase tracking-wider transition-all rounded-sm flex items-center gap-1.5",
+              isAdminView 
+                ? "bg-brand-accent text-white border-none shadow-md" 
+                : "bg-white text-brand-primary border border-gray-100 hover:border-brand-primary hover:bg-gray-50"
+            )}
+          >
+            <ShieldAlert className="w-3.5 h-3.5" />
+            {isAdminView ? "חזרה לקטלוג" : "מנהל מלאי"}
+          </button>
+        )}
+
         {user && (
           <div className="flex items-center gap-3 px-3 py-1 border border-gray-100 rounded-full bg-gray-50/50">
             <div className="hidden sm:block text-left text-[10px]">
