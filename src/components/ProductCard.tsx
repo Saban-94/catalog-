@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
+import { collection, onSnapshot, query } from "firebase/firestore";
+import { db } from "@/src/lib/firebase";
 import { Product } from "@/src/data/mockProducts";
-import { MOCK_PRODUCTS } from "@/src/data/mockProducts";
 import ProductCard from "./ProductCard";
 import { motion, AnimatePresence } from "motion/react";
 import { Loader2, PackageSearch } from "lucide-react";
@@ -11,9 +12,55 @@ export default function ProductCatalog() {
   const [filter, setFilter] = useState("הכל");
 
   useEffect(() => {
-    // עקיפת Firestore ושימוש בנתונים סטטיים לבדיקת הממשק
-    setProducts(MOCK_PRODUCTS);
-    setLoading(false);
+    // ודא ששם הקולקשן כאן תואם בדיוק לשם ב-Firestore (למשל "inventory" או "Inventory")
+    const q = query(collection(db, "inventory"));
+    
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const prods = snapshot.docs.map(doc => {
+        const data = doc.data();
+        
+        // מיפוי גמיש ומאובטח המונע ערכים ריקים בממשק
+        const sku = data.sku || data.SKU || "";
+        const specsRaw = data.specs || data.Specs_JSON || data.specs_json || {};
+        
+        let parsedSpecs = {};
+        if (typeof specsRaw === "string") {
+          try {
+            parsedSpecs = JSON.parse(specsRaw);
+          } catch (e) {
+            parsedSpecs = {};
+          }
+        } else {
+          parsedSpecs = specsRaw;
+        }
+
+        return {
+          id: doc.id,
+          sku: sku,
+          name: data.name || data.ProductName || data.productName || "מוצר ללא שם",
+          category: data.category || data.Category || "כללי",
+          price: Number(data.price ?? data.Price ?? 0),
+          stock: Number(data.stock ?? data.Stock ?? 0),
+          unit: data.unit || data.Unit || "יחידה",
+          specs: parsedSpecs,
+          image: data.image || data.Image || `https://picsum.photos/seed/${sku}/400/300`,
+          driveFolderLink: data.driveFolderLink || data.Drive_Assets || "",
+          tutorialLink: data.tutorialLink || data.Tutorial_Link || "",
+          relatedSkus: data.relatedSkus || data.Related_Items || []
+        } as Product;
+      });
+
+      // מיון אלפביתי בצד הלקוח למניעת שגיאות אינדקסים ב-Firestore
+      const sortedProds = prods.sort((a, b) => a.name.localeCompare(b.name, "he"));
+
+      setProducts(sortedProds);
+      setLoading(false);
+    }, (error) => {
+      console.error("Firestore Error:", error);
+      setLoading(false);
+    });
+
+    return () => unsubscribe();
   }, []);
 
   const filteredProducts = products.filter(p => 
@@ -49,7 +96,7 @@ export default function ProductCatalog() {
         </div>
         
         <div className="flex flex-wrap gap-4">
-          {["הכל", "צבעים", "דבקים", "כלי עבודה"].map((cat) => (
+          {["הכל", "צבעים", "דבקים וחומרי מליטה", "כלי עבודה"].map((cat) => (
             <button 
               key={cat}
               onClick={() => setFilter(cat)}
