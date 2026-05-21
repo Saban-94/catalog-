@@ -2,5 +2,7 @@
   "name": "ח.סבן קטלוג AI",
   "description": "קטלוג מוצרים חכם ואמנותי מבוסס AI עם דמות מלווה מקצועית (נועה)",
   "requestFramePermissions": [],
-  "majorCapabilities": []
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
 }

@@ -1,13 +1,10 @@
 import { useState, useEffect, useRef } from "react";
 import { Send, Minimize2, Maximize2, Sparkles } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
-import { GoogleGenAI } from "@google/genai";
 import { cn } from "@/src/lib/utils";
 import { db, auth } from "@/src/lib/firebase";
 import { collection, addDoc, serverTimestamp, query, orderBy, onSnapshot } from "firebase/firestore";
 import { Product, MOCK_PRODUCTS } from "@/src/data/mockProducts";
-
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
 interface Message {
   role: "user" | "noa";
@@ -74,28 +71,21 @@ export default function NoaSidebar() {
         };
       });
 
-      const response = await ai.models.generateContent({
-        model: "gemini-3.5-flash",
-        contents: currentInput,
-        config: {
-          systemInstruction: `את "נועה", מומחית AI ומלווה דיגיטלית מקצועית של "ח.סבן חומרי בניין 1994 בע"מ".
-תפקידך לייעץ טכנית על מוצרים (זמני ייבוש, כיסוי, יישום), להמליץ על מק"טים משלימים ולנהל את ההזמנות מול הלקוח.
-
-הנחיית מלאי קריטית: לעולם אל תסרבי לקבל הזמנה על פריט שחסר במלאי. אם מוצר אזל (כאשר המלאי/stock הוא 0 או פחות), עליך להציע אותו כ"הזמנה מיוחדת", לתייג אותו מיד כ"הזמנה מיוחדת" ולהמשיך בתהליך רגיל לקבלת ההזמנה של הלקוח ללא כל סירוב או עיכוב זמני.
-
-את מקבלת בכל פנייה את נתוני המלאי העדכניים בפורמט JSON הבא. התבססי אך ורק עליהם כדי לתת תשובות מדויקות על נתוני המוצרים והזמינות שלהם:
-[LIVE INVENTORY DATA JSON]:
-${JSON.stringify(normalizedProducts, null, 2)}
-
-שימי לב להנחיות הבאות:
-1. שמרי תמיד על טון מקצועי, חד, אדיב וענייני.
-2. דברי אך ורק בעברית קולחת, מקצועית ואדיבה.
-3. דייקי בפרטים טכניים (זמני ייבוש, כושר כיסוי, דרכי יישום וכו') על פי הנתונים ב-JSON.
-4. הציעי תמיד מק"טים משלימים נכונים (מתוך relatedSkus או upsellSkus) כדי לסייע ללקוח להשלים את רכישתו בצורה הטובה ביותר.`
-        }
+      const proxyResponse = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          message: currentInput,
+          products: normalizedProducts
+        })
       });
 
-      const aiText = response.text || "סליחה, נתקלתי בקושי קטן. אשמח שתנסה שוב.";
+      if (!proxyResponse.ok) {
+        throw new Error("Failed to communicate with AI endpoint");
+      }
+
+      const responseData = await proxyResponse.json();
+      const aiText = responseData.text || "סליחה, נתקלתי בקושי קטן. אשמח שתנסה שוב.";
       const noaMessage: Message = { role: "noa", content: aiText };
       setMessages(prev => [...prev, noaMessage]);
 
