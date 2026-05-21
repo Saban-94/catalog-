@@ -183,9 +183,9 @@ export default function AdminManager() {
 
     // Parse specs JSON safely
     let parsedSpecs: any = {
-      dryingTime: newDryingTime.trim() || undefined,
-      coverage: newCoverage.trim() || undefined,
-      applicationMethod: newApplication.trim() || undefined,
+      dryingTime: newDryingTime.trim() || "",
+      coverage: newCoverage.trim() || "",
+      applicationMethod: newApplication.trim() || "",
     };
 
     try {
@@ -719,10 +719,10 @@ export default function AdminManager() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
-                {filteredProducts.map((p) => {
+                {filteredProducts.map((p, index) => {
                   const outOfStock = p.stock <= 0;
                   return (
-                    <tr key={p.sku} className={cn("hover:bg-gray-50/70 transition-colors", outOfStock && "bg-brand-accent/[0.01]")}>
+                    <tr key={`${p.sku || p.id || index}-${index}`} className={cn("hover:bg-gray-50/70 transition-colors", outOfStock && "bg-brand-accent/[0.01]")}>
                       <td className="p-4">
                         <div className="w-12 h-12 bg-gray-50 border border-gray-100 overflow-hidden flex items-center justify-center rounded-sm">
                           <img 
