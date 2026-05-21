@@ -2,8 +2,6 @@
  * @license
  * SPDX-License-Identifier: Apache-2.0
  */
-import { seedInventoryToFirestore } from "@/src/lib/seedDatabase";
-
 
 import { useState, useEffect } from "react";
 import { onAuthStateChanged, User } from "firebase/auth";
@@ -11,13 +9,19 @@ import { auth, loginWithGoogle } from "./lib/firebase";
 import Header from "./components/Header";
 import NoaSidebar from "./components/NoaSidebar";
 import ProductCatalog from "./components/ProductCatalog";
-import { motion, AnimatePresence } from "motion/react";
-import { Loader2, LogIn, Construction, Sparkles } from "lucide-react";
+import AdminManager from "./components/AdminManager"; // ייבוא דף הניהול החדש
+import { motion } from "motion/react";
+import { Loader2, LogIn, Construction, Sparkles, ShieldAlert } from "lucide-react";
 import { cn } from "./lib/utils";
 
 export default function App() {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [view, setView] = useState<"catalog" | "admin">("catalog");
+
+  // הגדרת רשימת המנהלים המורשים במערכת
+  const ADMIN_EMAILS = ["ramims@saban94.co.il"]; 
+  const isAdmin = user?.email ? ADMIN_EMAILS.includes(user.email) : false;
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
@@ -64,7 +68,7 @@ export default function App() {
             onClick={loginWithGoogle}
             className="w-full py-4 bg-black text-white rounded-2xl font-bold flex items-center justify-center gap-3 hover:scale-[1.02] active:scale-95 transition-all shadow-lg"
           >
-            <LogIn className="w-5 h-5" /> התחברות עם Google
+            <LogIn className="w-5 h-5" /> התחברות WITH Google
           </button>
 
           <div className="mt-10 pt-10 border-t border-gray-50 flex items-center justify-center gap-6">
@@ -89,14 +93,19 @@ export default function App() {
         <div className="absolute top-[10%] -right-20 w-[600px] h-[600px] bg-gray-50 rounded-full blur-[120px] opacity-60"></div>
         <div className="absolute bottom-0 -left-20 w-[400px] h-[400px] bg-red-50/20 rounded-full blur-[100px]"></div>
       </div>
-// הוסף את הכפתור הזה איפשהו בממשק, לחץ עליו פעם אחת, ואז תוכל למחוק אותו
-<button 
-  onClick={seedInventoryToFirestore}
-  className="bg-red-500 text-white px-4 py-2 rounded-lg text-xs font-bold"
->
-  הזרק נתוני דמו למלאי
-</button>
+
       <Header />
+      
+      {/* כפתור כניסה לפאנל הניהול - יוצג רק אם המשתמש מוגדר כמנהל ברשימה למעלה */}
+      {isAdmin && (
+        <button
+          onClick={() => setView(view === "catalog" ? "admin" : "catalog")}
+          className="fixed top-6 left-24 z-50 bg-black text-white px-5 py-2.5 rounded-full text-xs font-black uppercase tracking-widest shadow-xl border border-white/10 hover:scale-105 active:scale-95 transition-all flex items-center gap-2"
+        >
+          <ShieldAlert className="w-4 h-4 text-brand-accent" />
+          {view === "catalog" ? "פאנל ניהול" : "חזרה לקטלוג"}
+        </button>
+      )}
       
       <div className="flex">
         {/* Sidebar Space Placeholder - The sidebar is fixed */}
@@ -104,11 +113,13 @@ export default function App() {
         
         <main className="flex-1 px-12 pt-32 pb-20 relative z-10">
           <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 1 }}
+            key={view}
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.3 }}
           >
-            <ProductCatalog />
+            {/* החלפת קומפוננטת התצוגה בהתאם לבחירה */}
+            {view === "catalog" ? <ProductCatalog /> : <AdminManager />}
           </motion.div>
 
           <footer className="mt-20 pt-10 border-t border-gray-100 flex flex-col md:flex-row items-center justify-between gap-6 text-gray-400 text-sm font-medium">
